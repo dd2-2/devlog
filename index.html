@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>개발일지</title>
+<meta name="description" content="개인 프로젝트 개발 기록 타임라인" />
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark">◆</span>
+        <span class="brand-name">개발일지</span>
+      </div>
+      <div class="topbar-actions">
+        <input id="search" class="search" type="text" placeholder="검색..." autocomplete="off" />
+        <button id="themeToggle" class="icon-btn" title="테마 전환" aria-label="테마 전환">◐</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-section-title">프로젝트</div>
+      <nav id="projectList" class="project-list"></nav>
+    </aside>
+
+    <main class="timeline" id="timeline">
+      <div class="loading">불러오는 중...</div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <span id="generatedAt"></span> · STATUS.md/메모리 기록 기반 자동 생성
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
