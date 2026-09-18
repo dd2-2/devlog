@@ -42,30 +42,73 @@ function scrub(text) {
     .replace(/https:\/\/script\.google\.com\/macros\/\S+/g, "(웹훅 URL 비공개)");
 }
 
-const DATE_HEADING = /^##\s+(\d{4}-\d{2}-\d{2})\s*[:：]?\s*(.*)$/;
+const HEADING = /^(#{2,3})\s+(.*)$/;
+const DATE_RE = /\d{4}-\d{2}-\d{2}/;
 
 function stripFrontmatter(raw) {
   if (raw.startsWith("---")) {
     const end = raw.indexOf("\n---", 3);
-    if (end !== -1) return raw.slice(end + 4);
+    if (end !== -1) return { body: raw.slice(end + 4), frontmatter: raw.slice(0, end) };
   }
-  return raw;
+  return { body: raw, frontmatter: "" };
 }
 
-function parseEntries(projectId, raw) {
+// "## 2026-08-06: 제목" 처럼 날짜가 맨 앞이든, "## 제목 (2026-08-06)" 처럼 뒤에 있든
+// 헤딩 한 줄에서 날짜 하나를 뽑아내고 나머지를 제목으로 정리한다.
+function extractDateFromHeading(text) {
+  const leading = text.match(/^(\d{4}-\d{2}-\d{2})\s*[:：\-–]?\s*(.*)$/);
+  if (leading) return { date: leading[1], title: leading[2].trim() };
+
+  const m = text.match(DATE_RE);
+  if (!m) return null;
+  let title = (text.slice(0, m.index) + text.slice(m.index + m[0].length))
+    .replace(/\(\s*[,，]?\s*\)/g, "")
+    .replace(/[,，]\s*\)/g, ")")
+    .replace(/\(\s*[,，]\s*/g, "(")
+    .replace(/\(\s+/g, "(")
+    .replace(/\s+\)/g, ")")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return { date: m[0], title: title || "업데이트" };
+}
+
+function frontmatterDate(frontmatter) {
+  const m = frontmatter.match(/modified:\s*(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : null;
+}
+
+function h1Date(body) {
+  const firstLine = body.split("\n").find((l) => l.trim().length > 0) || "";
+  const m = firstLine.match(DATE_RE);
+  return m ? m[0] : null;
+}
+
+function parseEntries(projectId, raw, frontmatter, fileMtime) {
   const lines = raw.split("\n");
   const entries = [];
   let current = null;
+  let preamble = [];
+
   for (const line of lines) {
-    const m = line.match(DATE_HEADING);
-    if (m) {
+    const h = line.match(HEADING);
+    const parsed = h ? extractDateFromHeading(h[2].trim()) : null;
+    if (parsed) {
       if (current) entries.push(current);
-      current = { date: m[1], title: m[2].trim() || "업데이트", body: [] };
+      current = { date: parsed.date, title: parsed.title || "업데이트", body: [] };
     } else if (current) {
       current.body.push(line);
+    } else {
+      preamble.push(line);
     }
   }
   if (current) entries.push(current);
+
+  // 날짜 헤딩이 하나도 없는 문서(현황 요약형) — 통짜 스냅샷 1건으로 대체
+  if (!entries.length) {
+    const date = h1Date(raw) || frontmatterDate(frontmatter) || fileMtime;
+    entries.push({ date, title: "현재 상태 (날짜별 기록 없음)", body: [raw] });
+  }
+
   return entries.map((e, i) => ({
     id: `${projectId}-${e.date}-${i}`,
     date: e.date,
@@ -82,9 +125,11 @@ for (const m of MANIFEST) {
     console.warn(`[skip] 파일 없음: ${m.file}`);
     continue;
   }
-  const raw = stripFrontmatter(fs.readFileSync(m.file, "utf-8"));
+  const fileRaw = fs.readFileSync(m.file, "utf-8");
+  const { body: raw, frontmatter } = stripFrontmatter(fileRaw);
+  const fileMtime = fs.statSync(m.file).mtime.toISOString().slice(0, 10);
   const rawMd = scrub(raw.trim());
-  const projEntries = parseEntries(m.id, raw);
+  const projEntries = parseEntries(m.id, raw, frontmatter, fileMtime);
   const lastDate = projEntries.length ? projEntries.map((e) => e.date).sort().at(-1) : null;
 
   projects.push({
