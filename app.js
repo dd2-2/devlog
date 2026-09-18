@@ -49,10 +49,13 @@ function renderSidebar() {
     </div>`;
 
   const items = sorted.map((p) => `
-    <div class="project-item ${state.activeProject === p.id ? "active" : ""}" data-project="${p.id}">
+    <div class="project-item ${state.activeProject === p.id ? "active" : ""}" data-project="${p.id}" title="${escapeHtml(p.desc || "")}">
       <span class="project-item-label">
         <span class="status-dot ${p.status}"></span>
-        <span>${p.name}</span>
+        <span class="project-item-text">
+          <span class="project-item-name">${p.name}</span>
+          <span class="project-item-desc">${escapeHtml(p.desc || "")}</span>
+        </span>
       </span>
       <span class="count">${p.entryCount}</span>
     </div>
@@ -87,8 +90,21 @@ function renderTimeline() {
   }
   entries = entries.filter(matchesQuery);
 
+  const activeProject = state.activeProject !== "all"
+    ? state.data.projects.find((p) => p.id === state.activeProject)
+    : null;
+  const headerHtml = activeProject ? `
+    <div class="project-header">
+      <span class="status-dot ${activeProject.status}"></span>
+      <div class="project-header-text">
+        <div class="project-header-name">${escapeHtml(activeProject.name)}</div>
+        <div class="project-header-desc">${escapeHtml(activeProject.desc || "")}</div>
+      </div>
+    </div>
+  ` : "";
+
   if (!entries.length) {
-    el.innerHTML = `<div class="empty">기록이 없습니다.</div>`;
+    el.innerHTML = headerHtml + `<div class="empty">기록이 없습니다.</div>`;
     return;
   }
 
@@ -102,7 +118,7 @@ function renderTimeline() {
     groups[groups.length - 1].items.push(e);
   }
 
-  el.innerHTML = groups.map((g) => `
+  el.innerHTML = headerHtml + groups.map((g) => `
     <div class="day-group">
       <div class="day-label">${fmtDate(g.date)}</div>
       ${g.items.map((e) => `
