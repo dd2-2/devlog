@@ -84,7 +84,7 @@ function h1Date(body) {
 }
 
 function parseEntries(projectId, raw, frontmatter, fileMtime) {
-  const lines = raw.split("\n");
+  const lines = raw.split(/\r?\n/);
   const entries = [];
   let current = null;
   let preamble = [];
